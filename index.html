@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f5ff">
+  <title>영어 단어 4지선다 퀴즈</title>
+
+  <!-- Supabase JavaScript v2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg: #f7f5ff;
+      --card: #ffffff;
+      --primary: #6c63d9;
+      --primary-dark: #5148bd;
+      --text: #272640;
+      --muted: #77758d;
+      --border: #e6e3f2;
+      --correct: #17845b;
+      --correct-bg: #e9f8f0;
+      --wrong: #c54d5d;
+      --wrong-bg: #fff0f1;
+      --pending: #8b6a13;
+      --pending-bg: #fff6dc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 28px 16px;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 10% 5%, #e9e5ff 0, transparent 30%),
+        var(--bg);
+      color: var(--text);
+      font-family:
+        "Apple SD Gothic Neo", "Malgun Gothic",
+        "Noto Sans KR", sans-serif;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 650px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      padding: 7px 12px;
+      border-radius: 20px;
+      background: #ebe8ff;
+      color: var(--primary-dark);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 14px 0 8px;
+      font-size: clamp(25px, 5vw, 34px);
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .progress-card,
+    .question-card,
+    .result-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: 0 10px 30px rgba(61, 50, 120, 0.06);
+    }
+
+    .progress-card {
+      padding: 17px 20px;
+      margin-bottom: 16px;
+    }
+
+    .progress-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .progress-count {
+      color: var(--primary-dark);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      margin-top: 12px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: #eeecf7;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #8d83f4, #655bd4);
+      transition: width 0.25s ease;
+    }
+
+    .question-card {
+      padding: clamp(22px, 5vw, 34px);
+    }
+
+    .question-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .word {
+      margin: 13px 0 8px;
+      font-size: clamp(34px, 8vw, 48px);
+      line-height: 1.2;
+      letter-spacing: -1px;
+      overflow-wrap: anywhere;
+    }
+
+    .instruction {
+      margin: 0 0 25px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .choices {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .choice {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border: 2px solid var(--border);
+      border-radius: 15px;
+      background: #fff;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      transition:
+        border-color 0.15s ease,
+        background 0.15s ease,
+        transform 0.15s ease;
+    }
+
+    .choice:hover:not(:disabled) {
+      border-color: #a59df0;
+      background: #faf9ff;
+      transform: translateY(-1px);
+    }
+
+    .choice:focus-visible,
+    .primary-button:focus-visible {
+      outline: 3px solid #b4adff;
+      outline-offset: 3px;
+    }
+
+    .choice:disabled {
+      cursor: default;
+      opacity: 1;
+    }
+
+    .choice-letter {
+      flex: 0 0 30px;
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      background: #f0eef9;
+      color: var(--primary-dark);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .choice.correct {
+      border-color: var(--correct);
+      background: var(--correct-bg);
+    }
+
+    .choice.correct .choice-letter {
+      background: var(--correct);
+      color: white;
+    }
+
+    .choice.wrong {
+      border-color: var(--wrong);
+      background: var(--wrong-bg);
+    }
+
+    .choice.wrong .choice-letter {
+      background: var(--wrong);
+      color: white;
+    }
+
+    .feedback {
+      display: none;
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 14px;
+      line-height: 1.65;
+      font-size: 15px;
+    }
+
+    .feedback.show {
+      display: block;
+    }
+
+    .feedback.correct {
+      background: var(--correct-bg);
+      color: #116746;
+    }
+
+    .feedback.wrong {
+      background: var(--wrong-bg);
+      color: #a52f40;
+    }
+
+    .feedback-title {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 17px;
+      font-weight: 900;
+    }
+
+    .save-status {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #f5f4fa;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+
+    .save-status.success {
+      background: var(--correct-bg);
+      color: #116746;
+    }
+
+    .save-status.error {
+      background: var(--pending-bg);
+      color: #78590d;
+    }
+
+    .save-status[hidden] {
+      display: none;
+    }
+
+    .result-card {
+      display: none;
+      margin-top: 18px;
+      padding: 28px 22px;
+      text-align: center;
+    }
+
+    .result-card.show {
+      display: block;
+    }
+
+    .result-emoji {
+      font-size: 40px;
+    }
+
+    .result-heading {
+      margin: 10px 0 4px;
+      font-size: 25px;
+    }
+
+    .score {
+      margin: 16px 0;
+      color: var(--primary-dark);
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+
+    .result-detail {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .primary-button {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 22px;
+      border: 0;
+      border-radius: 14px;
+      background: var(--primary);
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .primary-button:hover {
+      background: var(--primary-dark);
+    }
+
+    .primary-button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .footer {
+      margin-top: 22px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 440px) {
+      body {
+        padding: 20px 12px;
+      }
+
+      .choices {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .choice {
+        min-height: 56px;
+      }
+
+      .question-card {
+        padding: 22px 18px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <header class="header">
+      <span class="eyebrow">VOCABULARY CHALLENGE</span>
+      <h1>영어 단어 퀴즈 ✨</h1>
+      <p class="subtitle">
+        영어 단어의 뜻을 골라 보세요.<br>
+        총 3문제 · 문제당 1점
+      </p>
+    </header>
+
+    <section class="progress-card" aria-label="퀴즈 진행 상황">
+      <div class="progress-top">
+        <span>오늘의 단어 챌린지</span>
+        <span class="progress-count" id="progressCount">1 / 3</span>
+      </div>
+      <div
+        class="progress-track"
+        id="progressTrack"
+        role="progressbar"
+        aria-label="퀴즈 진행률"
+        aria-valuemin="0"
+        aria-valuemax="3"
+        aria-valuenow="0"
+      >
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </section>
+
+    <section class="question-card" id="questionCard">
+      <div class="question-label" id="questionLabel">QUESTION 01</div>
+      <h2 class="word" id="word">abundant</h2>
+      <p class="instruction">이 영어 단어와 의미가 같은 보기를 선택하세요.</p>
+
+      <div class="choices" id="choices" aria-label="답 선택">
+        <!-- JavaScript가 보기를 생성합니다. -->
+      </div>
+
+      <div
+        class="feedback"
+        id="feedback"
+        role="status"
+        aria-live="polite"
+      ></div>
+
+      <div
+        class="save-status"
+        id="saveStatus"
+        role="status"
+        aria-live="polite"
+        hidden
+      ></div>
+
+      <button class="primary-button" id="nextButton" hidden>
+        다음 문제 →
+      </button>
+    </section>
+
+    <section class="result-card" id="resultCard" aria-live="polite">
+      <div class="result-emoji" id="resultEmoji">🎉</div>
+      <h2 class="result-heading">퀴즈 완료!</h2>
+      <p>끝까지 풀어 냈어요. 정말 수고했어요!</p>
+      <div class="score" id="finalScore">0 / 3점</div>
+      <div class="result-detail" id="resultDetail"></div>
+      <button class="primary-button" id="restartButton">
+        다시 풀기 🔄
+      </button>
+    </section>
+
+    <footer class="footer">
+      이 퀴즈는 이름이나 이메일을 수집하지 않습니다.<br>
+      선택한 답과 정오답, 응답 시간만 저장합니다.
+    </footer>
+  </main>
+
+  <script>
+    "use strict";
+
+    // 1. Supabase 설정: 실제 프로젝트 값으로 교체하세요.
+    const SUPABASE_URL = "﻿https://sxnzvscgmrvrdwmkjbtf.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "﻿sb_publishable_1zdkhYWI0nE4V8pBdL4ALw__GyIAqGO";
+
+    // 2. 퀴즈 문제
+    const QUESTIONS = [
+      {
+        question_no: 1,
+        english_word: "abundant",
+        choices: ["조용한", "풍부한", "위험한", "느린"],
+        correct_answer: "풍부한"
+      },
+      {
+        question_no: 2,
+        english_word: "reluctant",
+        choices: ["주저하는", "열정적인", "정확한", "부지런한"],
+        correct_answer: "주저하는"
+      },
+      {
+        question_no: 3,
+        english_word: "brief",
+        choices: ["강력한", "평범한", "짧은", "불규칙한"],
+        correct_answer: "짧은"
+      }
+    ];
+
+    const LETTERS = ["A", "B", "C", "D"];
+
+    // 3. Supabase 클라이언트 초기화
+    const supabaseConfigured =
+      SUPABASE_URL !== "YOUR_SUPABASE_URL" &&
+      SUPABASE_PUBLISHABLE_KEY !== "YOUR_PUBLISHABLE_KEY" &&
+      SUPABASE_URL.startsWith("https://") &&
+      SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_");
+
+    const supabaseClient = supabaseConfigured
+      ? window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_PUBLISHABLE_KEY
+        )
+      : null;
+
+    // 4. 앱 상태
+    let attemptId = "";
+    let currentIndex = 0;
+    let score = 0;
+    let answered = false;
+    let finished = false;
+    let questionStartedAt = 0;
+    let currentResponseTimeMs = 0;
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let saveSuccessCount = 0;
+    let saveFailureCount = 0;
+    let pendingSaves = 0;
+    let responseResults = [];
+
+    // DOM
+    const questionCard = document.getElementById("questionCard");
+    const questionLabel = document.getElementById("questionLabel");
+    const wordElement = document.getElementById("word");
+    const choicesElement = document.getElementById("choices");
+    const feedbackElement = document.getElementById("feedback");
+    const saveStatusElement = document.getElementById("saveStatus");
+    const nextButton = document.getElementById("nextButton");
+    const progressCount = document.getElementById("progressCount");
+    const progressFill = document.getElementById("progressFill");
+    const progressTrack = document.getElementById("progressTrack");
+    const resultCard = document.getElementById("resultCard");
+    const finalScore = document.getElementById("finalScore");
+    const resultDetail = document.getElementById("resultDetail");
+    const resultEmoji = document.getElementById("resultEmoji");
+    const restartButton = document.getElementById("restartButton");
+
+    function showSaveStatus(message, type = "") {
+      saveStatusElement.hidden = false;
+      saveStatusElement.className = "save-status" +
+        (type ? " " + type : "");
+      saveStatusElement.textContent = message;
+    }
+
+    function hideSaveStatus() {
+      saveStatusElement.hidden = true;
+      saveStatusElement.textContent = "";
+      saveStatusElement.className = "save-status";
+    }
+
+    function updateProgress() {
+      progressCount.textContent =
+        Math.min(currentIndex + 1, QUESTIONS.length) +
+        " / " + QUESTIONS.length;
+
+      progressFill.style.width =
+        (responseResults.length / QUESTIONS.length * 100) + "%";
+
+      progressTrack.setAttribute(
+        "aria-valuenow",
+        String(responseResults.length)
+      );
+    }
+
+    function renderQuestion() {
+      answered = false;
+
+      const question = QUESTIONS[currentIndex];
+
+      questionLabel.textContent =
+        "QUESTION " + String(question.question_no).padStart(2, "0");
+      wordElement.textContent = question.english_word;
+
+      choicesElement.replaceChildren();
+      feedbackElement.className = "feedback";
+      feedbackElement.textContent = "";
+      nextButton.hidden = true;
+      hideSaveStatus();
+
+      question.choices.forEach((choice, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "choice";
+
+        const letter = document.createElement("span");
+        letter.className = "choice-letter";
+        letter.textContent = LETTERS[index];
+
+        const label = document.createElement("span");
+        label.textContent = choice;
+
+        button.append(letter, label);
+        button.addEventListener("click", () => selectAnswer(choice, button));
+
+        choicesElement.appendChild(button);
+      });
+
+      updateProgress();
+
+      // 문제 표시 시점부터 첫 선택까지의 시간을 측정합니다.
+      questionStartedAt = performance.now();
+    }
+
+    function selectAnswer(choice) {
+      // 중복 클릭 방지: 문제당 최초 선택만 처리합니다.
+      if (answered || finished) return;
+
+      answered = true;
+
+      currentResponseTimeMs = Math.max(
+        0,
+        Math.round(performance.now() - questionStartedAt)
+      );
+
+      const question = QUESTIONS[currentIndex];
+      const isCorrect = choice === question.correct_answer;
+
+      if (isCorrect) {
+        score += 1;
+        correctCount += 1;
+      } else {
+        incorrectCount += 1;
+      }
+
+      // 다시 클릭해도 답이나 DB 요청이 반복되지 않도록 즉시 잠급니다.
+      const buttons = choicesElement.querySelectorAll("button");
+
+      buttons.forEach((button) => {
+        button.disabled = true;
+
+        const label = button.lastElementChild.textContent;
+
+        if (label === question.correct_answer) {
+          button.classList.add("correct");
+        } else if (label === choice) {
+          button.classList.add("wrong");
+        }
+      });
+
+      feedbackElement.className =
+        "feedback show " + (isCorrect ? "correct" : "wrong");
+
+      const title = document.createElement("span");
+      title.className = "feedback-title";
+      title.textContent = isCorrect ? "정답이에요! 🎉" : "아쉬워요! 💡";
+
+      const explanation = document.createElement("span");
+      explanation.textContent =
+        question.english_word + " = " + question.correct_answer;
+
+      feedbackElement.replaceChildren(title, explanation);
+
+      responseResults.push({
+        question_no: question.question_no,
+        is_correct: isCorrect,
+        response_time_ms: currentResponseTimeMs
+      });
+
+      updateProgress();
+
+      // DB 저장은 퀴즈 진행과 독립적으로 처리합니다.
+      saveResponse({
+        attempt_id: attemptId,
+        question_no: question.question_no,
+        english_word: question.english_word,
+        chosen_answer: choice,
+        is_correct: isCorrect,
+        response_time_ms: currentResponseTimeMs
+      });
+
+      nextButton.textContent =
+        currentIndex === QUESTIONS.length - 1
+          ? "결과 확인하기 →"
+          : "다음 문제 →";
+
+      nextButton.hidden = false;
+      nextButton.focus();
+    }
+
+    async function saveResponse(payload) {
+      if (!supabaseClient) {
+        saveFailureCount += 1;
+        showSaveStatus(
+          "저장하지 못했어요: Supabase URL 또는 Publishable Key 설정을 확인하세요. 퀴즈는 계속할 수 있어요.",
+          "error"
+        );
+        return;
+      }
+
+      pendingSaves += 1;
+      showSaveStatus("응답을 저장하고 있어요…");
+
+      try {
+        // 요청한 컬럼만 INSERT합니다.
+        // SELECT, UPDATE, DELETE, insert().select()는 사용하지 않습니다.
+        const { error } = await supabaseClient
+          .from("quiz_answers")
+          .insert([payload]);
+
+        if (error) {
+          throw error;
+        }
+
+        saveSuccessCount += 1;
+        showSaveStatus(
+          "✓ 응답 저장 성공 (" +
+          saveSuccessCount + "/" + QUESTIONS.length + ")",
+          "success"
+        );
+      } catch (error) {
+        saveFailureCount += 1;
+
+        console.error("Supabase INSERT failed:", error);
+
+        showSaveStatus(
+          "응답 저장에 실패했어요. Supabase 설정과 RLS 권한을 확인하세요. 퀴즈 결과에는 영향이 없어요.",
+          "error"
+        );
+      } finally {
+        pendingSaves -= 1;
+      }
+    }
+
+    function showResults() {
+      finished = true;
+      questionCard.hidden = true;
+      resultCard.classList.add("show");
+
+      finalScore.textContent = score + " / 3점";
+
+      if (score === 3) {
+        resultEmoji.textContent = "🏆";
+      } else if (score === 2) {
+        resultEmoji.textContent = "🌟";
+      } else {
+        resultEmoji.textContent = "💪";
+      }
+
+      resultDetail.textContent =
+        "정답 " + correctCount + "개 · 오답 " + incorrectCount +
+        "개 · 저장 성공 " + saveSuccessCount +
+        "개 · 저장 실패 " + saveFailureCount + "개";
+
+      progressCount.textContent = "3 / 3";
+      progressFill.style.width = "100%";
+      progressTrack.setAttribute("aria-valuenow", "3");
+    }
+
+    nextButton.addEventListener("click", () => {
+      if (!answered || finished) return;
+
+      if (currentIndex < QUESTIONS.length - 1) {
+        currentIndex += 1;
+        renderQuestion();
+      } else {
+        showResults();
+      }
+    });
+
+    restartButton.addEventListener("click", startQuiz);
+
+    function startQuiz() {
+      attemptId = crypto.randomUUID();
+      currentIndex = 0;
+      score = 0;
+      answered = false;
+      finished = false;
+      correctCount = 0;
+      incorrectCount = 0;
+      saveSuccessCount = 0;
+      saveFailureCount = 0;
+      pendingSaves = 0;
+      responseResults = [];
+
+      resultCard.classList.remove("show");
+      questionCard.hidden = false;
+
+      renderQuestion();
+    }
+
+    // 첫 응시를 시작합니다.
+    startQuiz();
+  </script>
+</body>
+</html>
